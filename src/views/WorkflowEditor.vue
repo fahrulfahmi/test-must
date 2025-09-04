@@ -1,5 +1,6 @@
 <template>
   <div class="flex h-screen p-6 gap-4 bg-gray-100">
+    <!-- LEFT PANEL -->
     <div class="flex-1 flex flex-col border rounded shadow bg-white p-4">
       <div class="flex justify-between items-center mb-4">
         <ToolbarPlus @add-task="addTask" />
@@ -11,21 +12,19 @@
         </button>
       </div>
 
-      <draggable
-        v-model="workflowTasks"
-        item-key="taskReferenceName"
-        class="flex-1 grid grid-cols-3 gap-4 overflow-auto p-2"
-      >
-        <template #item="{ element }">
-          <TaskBlock
-            :task="element"
-            :selected="selectedTask === element"
-            @select-task="selectTask(element)"
-          />
-        </template>
-      </draggable>
+      <!-- GRID TASKS TANPA DRAGGABLE -->
+      <div class="flex-1 grid grid-cols-3 gap-4 overflow-auto p-2">
+        <TaskBlock
+          v-for="task in workflowTasks"
+          :key="task.taskReferenceName"
+          :task="task"
+          :selected="selectedTask === task"
+          @select-task="selectTask(task)"
+        />
+      </div>
     </div>
 
+    <!-- TASK PROPERTIES -->
     <div class="w-80 border rounded shadow bg-white p-4 flex flex-col">
       <TaskProperties
         v-if="selectedTask"
@@ -35,6 +34,7 @@
       <p v-else class="text-gray-400 mt-4">Klik task untuk lihat properti</p>
     </div>
 
+    <!-- CODE PANEL -->
     <div class="w-96 border rounded shadow bg-gray-50 p-4 flex flex-col">
       <CodeJsonPanel :workflowTasks="workflowTasks" />
     </div>
@@ -43,16 +43,23 @@
 
 <script setup>
 import { ref, onMounted } from "vue"
-import draggable from "vuedraggable"
 import ToolbarPlus from "@/components/ToolbarPlus.vue"
 import TaskBlock from "@/components/TaskBlock.vue"
 import TaskProperties from "@/components/TaskProperties.vue"
 import CodeJsonPanel from "@/components/CodeJsonPanel.vue"
 import { getWorkflows, updateWorkflow } from "@/services/api.js"
 
-const workflowTasks = ref([])
+const workflowTasks = ref([
+  {
+    taskReferenceName: "init_0",
+    name: "Init Task",
+    type: "HTTP",
+    inputParameters: { http_request: { method: "GET", uri: "" } }
+  }
+])
 const selectedTask = ref(null)
-const workflowName = ref("example_workflow") // default workflow name
+const workflowName = ref("example_workflow")
+
 const addTask = (type) => {
   const newTask = {
     name: `${type.toLowerCase()}_${workflowTasks.value.length}`,
@@ -99,11 +106,14 @@ const saveWorkflow = async () => {
     alert("Failed to save workflow")
   }
 }
+
 onMounted(async () => {
   try {
     const response = await getWorkflows()
-    workflowTasks.value = response.data[0]?.tasks || []
-    workflowName.value = response.data[0]?.name || "example_workflow"
+    if (Array.isArray(response.data[0]?.tasks)) {
+      workflowTasks.value = response.data[0].tasks
+      workflowName.value = response.data[0].name || workflowName.value
+    }
   } catch (err) {
     console.error("Load failed:", err)
   }
